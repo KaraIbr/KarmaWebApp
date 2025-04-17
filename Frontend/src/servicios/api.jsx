@@ -1,4 +1,5 @@
-const API_URL = 'http://127.0.0.1:5000/';
+// Use environment variables for API URL, with fallback for development
+const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000/';
 
 // Funciones de autenticación
 export const loginUsuario = async (correo, contraseña) => {

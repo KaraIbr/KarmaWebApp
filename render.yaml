@@ -3,7 +3,7 @@ services:
     name: karma-webapp
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn Backend.app:app
+    startCommand: gunicorn Backend.app:app --workers=4 --timeout=120
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
@@ -13,3 +13,8 @@ services:
         sync: false  # Esto significa que deberás configurar esta variable manualmente en el dashboard de Render
       - key: SUPABASE_KEY
         sync: false  # Esto significa que deberás configurar esta variable manualmente en el dashboard de Render
+    healthCheckPath: /
+    autoDeploy: true
+    scaling:
+      minInstances: 1
+      maxInstances: 3

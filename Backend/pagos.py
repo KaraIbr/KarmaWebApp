@@ -4,6 +4,10 @@ from flask import Blueprint, request, jsonify
 from supabase import create_client
 import datetime
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env si existe
+load_dotenv()
 
 # Supabase credenciales para la conexion - usando variables de entorno
 SUPABASE_URL = os.environ.get('SUPABASE_URL', "https://mhtytsmkqwydaixzjngz.supabase.co")

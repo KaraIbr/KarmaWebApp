@@ -1,8 +1,13 @@
 from flask import Flask, request, jsonify
 from supabase import create_client
 from flask_cors import CORS
-import hashlib  # Add this import for generating hash codes
-import os  # Add this for environment variables
+import hashlib
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env si existe
+load_dotenv()
+
 # Importar el Blueprint de usuarios
 from usuarios import usuarios_bp
 
@@ -48,7 +53,13 @@ SUPABASE_KEY = os.environ.get('SUPABASE_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Las rutas específicas se han movido a sus respectivos blueprints
+# Agregar una ruta raíz para health check
+@app.route('/')
+def health_check():
+    return jsonify({
+        "status": "ok",
+        "message": "API de Karma funcionando correctamente"
+    })
 
 if __name__ == '__main__':
     # Get port from environment variable (Render will set this) or default to 5000
