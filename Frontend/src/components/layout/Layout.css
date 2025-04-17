@@ -1,0 +1,221 @@
+/* Minimal CSS for layout components */
+
+/* Mobile-first styling */
+.layout-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.main-content {
+  flex: 1;
+  padding: 15px;
+  transition: margin-left 0.3s ease;
+  width: 100%;
+}
+
+.main-content.sidebar-open {
+  filter: brightness(0.8);
+}
+
+.offline-indicator {
+  background-color: #ffc107;
+  color: #000;
+  text-align: center;
+  padding: 8px;
+  font-size: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar functionality */
+.sidebar {
+  position: fixed;
+  left: -250px;
+  top: 0;
+  height: 100vh;
+  width: 250px;
+  z-index: 1030;
+  transition: left 0.3s ease;
+  overflow-y: auto;
+}
+
+.sidebar.open {
+  left: 0;
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1025;
+}
+
+/* Permission Guard Styling */
+.permission-denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 300px;
+  padding: 20px;
+  text-align: center;
+}
+
+.permission-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  max-width: 90%;
+  width: 400px;
+}
+
+/* Error Boundary Styling */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 20px;
+}
+
+.error-content {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.error-title {
+  color: #dc3545;
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+.error-message {
+  color: #555;
+  margin-bottom: 20px;
+}
+
+.error-details {
+  margin: 20px 0;
+  text-align: left;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.error-details summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.error-details pre {
+  margin-top: 10px;
+  overflow: auto;
+  max-height: 200px;
+  font-size: 12px;
+  background-color: #f1f1f1;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.error-actions {
+  margin-top: 20px;
+}
+
+/* Brand color and common styling */
+.karma-brand {
+  color: #ff85e4 !important;
+}
+
+/* Tablet and larger */
+@media (min-width: 768px) {
+  .layout-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .main-content {
+    padding: 20px;
+    margin-left: 60px; /* Width of collapsed sidebar */
+  }
+  
+  .main-content.sidebar-open {
+    margin-left: 250px; /* Width of expanded sidebar */
+    filter: none;
+  }
+  
+  .mobile-toggle {
+    display: none;
+  }
+  
+  .sidebar {
+    left: 0;
+    width: 60px;
+  }
+  
+  .sidebar.open {
+    width: 250px;
+  }
+  
+  .content-shifted {
+    margin-left: 250px;
+  }
+  
+  .transition-margin {
+    transition: margin-left 0.3s ease;
+    margin-left: 60px;
+  }
+  
+  .nav-label {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .sidebar.open .nav-label {
+    opacity: 1;
+  }
+}
+
+/* Desktop and larger */
+@media (min-width: 1024px) {
+  .main-content {
+    margin-left: 250px; /* Always show expanded sidebar on desktop */
+  }
+  
+  .sidebar {
+    width: 250px;
+  }
+  
+  .nav-label {
+    opacity: 1;
+  }
+  
+  .transition-margin {
+    margin-left: 250px;
+  }
+}
+
+/* Active nav item styling */
+.nav-link.active {
+  background-color: rgba(255, 133, 228, 0.2);
+  border-left: 4px solid #ff85e4;
+}

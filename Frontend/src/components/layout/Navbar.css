@@ -1,0 +1,117 @@
+/* Estilos para el componente Navbar con la nueva paleta de colores */
+
+/* Definición de variables CSS para la paleta */
+:root {
+  --lavender-start: #F8A4D8;
+  --lavender-end: #6C63FF;
+  --cornflower-blue: #6C63FF;
+  --shuttle-gray: #5A6170;
+  --gull-gray: #9DA6B8;
+  --alto: #DADFEA;
+  --snow-white: #FFFFFF;
+}
+
+/* Estilo base para la barra lateral */
+.sidebar {
+  width: 260px;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* En dispositivos móviles, la barra lateral está oculta por defecto */
+@media (max-width: 767.98px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .mobile-toggle {
+    display: block;
+  }
+}
+
+/* En dispositivos de escritorio, la barra lateral siempre está visible */
+@media (min-width: 768px) {
+  .mobile-toggle {
+    display: none;
+  }
+}
+
+/* Estilo para el overlay que oscurece el fondo cuando la barra lateral está abierta */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Estilos para los íconos en la barra lateral */
+.sidebar .nav-link .fas {
+  width: 20px;
+  text-align: center;
+}
+
+/* Estilo para el título de la aplicación */
+.karma-brand {
+  background: linear-gradient(to right, var(--lavender-start), var(--lavender-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: bold;
+}
+
+/* Estilos para los enlaces de navegación */
+.sidebar .nav-link {
+  color: var(--snow-white);
+  border-radius: 4px;
+  margin: 0 8px;
+  padding: 10px 15px;
+  transition: all 0.2s ease;
+}
+
+/* Efectos al pasar el cursor sobre los enlaces */
+.sidebar .nav-link:hover {
+  background-color: rgba(218, 223, 234, 0.1); /* Alto con transparencia */
+}
+
+/* Estilo para el enlace activo */
+.sidebar .nav-link.active {
+  background-color: var(--alto);
+  color: var(--cornflower-blue);
+}
+
+/* Estilo para los botones principales */
+.btn-karma {
+  background-color: var(--cornflower-blue);
+  border-color: var(--cornflower-blue);
+  color: var(--snow-white);
+  transition: all 0.2s ease;
+}
+
+.btn-karma:hover {
+  background-color: #5A52E0; /* Versión más oscura del Cornflower Blue */
+  border-color: #5A52E0;
+  box-shadow: 0 2px 5px rgba(108, 99, 255, 0.3);
+}
+
+/* Estilo para las etiquetas en los enlaces */
+.sidebar .nav-link span {
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+/* Estilos para badges */
+.sidebar .badge {
+  padding: 5px 8px;
+  border-radius: 12px;
+}
