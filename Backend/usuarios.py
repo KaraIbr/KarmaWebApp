@@ -21,8 +21,8 @@ def obtener_usuarios():
         # Puedes añadir filtros opcionales
         role = request.args.get('role')
         
-        # Eliminando la columna 'telefono' que no existe en la tabla
-        query = supabase.table('usuarios').select('id, nombre, correo, direccion, role, created_at, last_login')
+        # Eliminando columnas que no existen en la tabla
+        query = supabase.table('usuarios').select('id, nombre, correo, role, last_login')
         
         if role:
             query = query.eq('role', role)
@@ -36,8 +36,8 @@ def obtener_usuarios():
 @usuarios_bp.route('/usuarios/<int:id>', methods=['GET'])
 def obtener_usuario_by_id(id):
     try:
-        # Eliminando la columna 'telefono' que no existe en la tabla
-        usuario = supabase.table('usuarios').select('id, nombre, correo, direccion, role, created_at, last_login').eq('id', id).execute()
+        # Eliminando columnas que no existen en la tabla
+        usuario = supabase.table('usuarios').select('id, nombre, correo, role, last_login').eq('id', id).execute()
         if not usuario.data:
             return jsonify({"error": "Usuario no encontrado"}), 404
         return jsonify(usuario.data[0]), 200
@@ -67,8 +67,7 @@ def crear_usuario():
         # Reemplazar la contraseña plana con el hash
         data['password'] = password_hash
         
-        # Agregar campos adicionales
-        data['created_at'] = datetime.datetime.now().isoformat()
+        # Agregar campos adicionales (eliminar created_at que no existe)
         data['role'] = data.get('role', 'cliente')  # Por defecto, rol cliente
         
         # Insertar el nuevo usuario
