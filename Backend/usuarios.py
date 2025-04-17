@@ -21,7 +21,8 @@ def obtener_usuarios():
         # Puedes añadir filtros opcionales
         role = request.args.get('role')
         
-        query = supabase.table('usuarios').select('id, nombre, correo, telefono, direccion, role, created_at, last_login')
+        # Eliminando la columna 'telefono' que no existe en la tabla
+        query = supabase.table('usuarios').select('id, nombre, correo, direccion, role, created_at, last_login')
         
         if role:
             query = query.eq('role', role)
@@ -35,7 +36,8 @@ def obtener_usuarios():
 @usuarios_bp.route('/usuarios/<int:id>', methods=['GET'])
 def obtener_usuario_by_id(id):
     try:
-        usuario = supabase.table('usuarios').select('id, nombre, correo, telefono, direccion, role, created_at, last_login').eq('id', id).execute()
+        # Eliminando la columna 'telefono' que no existe en la tabla
+        usuario = supabase.table('usuarios').select('id, nombre, correo, direccion, role, created_at, last_login').eq('id', id).execute()
         if not usuario.data:
             return jsonify({"error": "Usuario no encontrado"}), 404
         return jsonify(usuario.data[0]), 200

@@ -5,7 +5,8 @@ import hashlib
 import os
 import sys
 import logging
-# Eliminamos la importación de dotenv
+# Importamos dotenv para cargar variables de entorno
+from dotenv import load_dotenv
 from flask_compress import Compress
 from flask_talisman import Talisman  # Para seguridad HTTP
 
@@ -17,22 +18,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# En lugar de load_dotenv, cargaremos manualmente las variables si existe un archivo .env
-def cargar_variables_env():
-    env_path = os.path.join(os.path.dirname(__file__), '.env')
-    if os.path.exists(env_path):
-        logger.info(f"Cargando variables de entorno desde {env_path}")
-        with open(env_path, 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    key, value = line.split('=', 1)
-                    os.environ[key.strip()] = value.strip()
-    else:
-        logger.warning("Archivo .env no encontrado, usando valores predeterminados")
-
-# Cargar variables de entorno
-cargar_variables_env()
+# Cargar variables de entorno desde el archivo .env
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(env_path):
+    logger.info(f"Cargando variables de entorno desde {env_path}")
+    load_dotenv(env_path)
+else:
+    logger.warning("Archivo .env no encontrado, usando valores predeterminados")
 
 # Importar el Blueprint de usuarios
 from usuarios import usuarios_bp
@@ -50,7 +42,7 @@ app = Flask(__name__)
 # Configurar compresión para respuestas
 Compress(app)
 
-# Añadir headers de seguridad
+# Añadir headers de seguridad - deshabilitamos force_https para desarrollo
 Talisman(app, content_security_policy=None, force_https=False)
 
 # Registrar el Blueprint de usuarios con prefijo de URL
@@ -64,29 +56,15 @@ app.register_blueprint(inventario_bp, url_prefix='/api')  # Registrar el Bluepri
 app.register_blueprint(gateway_bp, url_prefix='/api')  # Registrar el Blueprint de gateway
 
 # Determinar los orígenes permitidos por CORS basados en el entorno
+# Como el frontend no está desarrollado, permitimos todos los orígenes comunes para desarrollo
 ALLOWED_ORIGINS = [
-    "http://127.0.0.1:5501",
-    "http://localhost:5501",
-    "http://localhost:3000", 
-    "http://127.0.0.1:3000",
-    "http://localhost:3001", 
-    "http://127.0.0.1:3001",
-  "https://karma-webapp.onrender.com",
-    "https://karma-frontend.onrender.com"
+    "http://127.0.0.1:*",
+    "http://localhost:*",
+    "https://*.onrender.com",
+    "*"  # Temporalmente permitimos todos los orígenes mientras se desarrolla el frontend
 ]
 
-# Añadir dominio de producción de Render si está definido
-FRONTEND_URL = os.environ.get('FRONTEND_URL')
-if FRONTEND_URL:
-    ALLOWED_ORIGINS.append(FRONTEND_URL)
-else:
-    # Dominios de producción por defecto
-    ALLOWED_ORIGINS.extend([
-        "https://karma-webapp.onrender.com",
-        "https://karma-frontend.onrender.com"
-    ])
-
-# Configuración de CORS para desarrollo y producción
+# Configuración de CORS más permisiva para fase de desarrollo
 CORS(app, resources={
     r"/*": {
         "origins": ALLOWED_ORIGINS,
@@ -121,7 +99,7 @@ except Exception as e:
         # En producción, es un error crítico
         sys.exit(1)
 
-# Agregar una ruta raíz para health check mejorada
+# Agregar rutas para documentación y prueba de API
 @app.route('/')
 def health_check():
     try:
@@ -138,6 +116,24 @@ def health_check():
         "environment": os.environ.get('FLASK_ENV', 'production'),
         "api_version": "1.0.0", 
         "message": "API de Karma funcionando correctamente"
+    })
+
+# Endpoint para probar la API
+@app.route('/api-test')
+def api_test():
+    """Endpoint para probar que la API está funcionando correctamente"""
+    return jsonify({
+        "status": "success",
+        "message": "La API está funcionando correctamente",
+        "endpoints_disponibles": [
+            {"ruta": "/api/usuarios", "métodos": ["GET", "POST"]},
+            {"ruta": "/api/productos", "métodos": ["GET", "POST"]},
+            {"ruta": "/api/carrito", "métodos": ["GET", "POST", "PUT", "DELETE"]},
+            {"ruta": "/api/ventas", "métodos": ["GET", "POST"]},
+            {"ruta": "/api/pagos", "métodos": ["GET", "POST"]},
+            {"ruta": "/api/inventario", "métodos": ["GET", "POST", "PUT", "DELETE"]},
+            {"ruta": "/api/gateway", "métodos": ["GET", "POST"]}
+        ]
     })
 
 if __name__ == '__main__':
