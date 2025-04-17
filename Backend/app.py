@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from supabase import create_client
 from flask_cors import CORS
 import hashlib  # Add this import for generating hash codes
+import os  # Add this for environment variables
 # Importar el Blueprint de usuarios
 from usuarios import usuarios_bp
 
@@ -10,7 +11,7 @@ app = Flask(__name__)
 app.register_blueprint(usuarios_bp, url_prefix='/usuarios')
 
 #Permitir react / js para que pueda hacer peticiones a la API
-#En nuestro caso se trabajo con react asi q localhost puerto 3000
+#Configuración de CORS para desarrollo y producción
 CORS(app, resources={
     r"/*": {
         "origins": [
@@ -18,8 +19,11 @@ CORS(app, resources={
             "http://localhost:5501",
             "http://localhost:3000", 
             "http://127.0.0.1:3000",
-             "http://localhost:3001", 
-            "http://127.0.0.1:3001"  
+            "http://localhost:3001", 
+            "http://127.0.0.1:3001",
+            # Añadir el dominio de producción de Render (actualizar cuando se conozca)
+            "https://karma-webapp.onrender.com",
+            "https://karma-frontend.onrender.com"
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
@@ -195,4 +199,9 @@ def generar_codigo_qr(id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Get port from environment variable (Render will set this) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    # In production, you don't want to run in debug mode
+    debug = os.environ.get('FLASK_ENV', 'production') != 'production'
+    # Run the app
+    app.run(host='0.0.0.0', port=port, debug=debug)
