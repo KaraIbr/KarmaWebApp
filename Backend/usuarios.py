@@ -21,7 +21,7 @@ def obtener_usuarios():
         # Puedes añadir filtros opcionales
         role = request.args.get('role')
         
-        query = supabase.table('usuarios').select('id, nombre, email, telefono, direccion, role, created_at, last_login')
+        query = supabase.table('usuarios').select('id, nombre, correo, telefono, direccion, role, created_at, last_login')
         
         if role:
             query = query.eq('role', role)
@@ -35,7 +35,7 @@ def obtener_usuarios():
 @usuarios_bp.route('/usuarios/<int:id>', methods=['GET'])
 def obtener_usuario_by_id(id):
     try:
-        usuario = supabase.table('usuarios').select('id, nombre, email, telefono, direccion, role, created_at, last_login').eq('id', id).execute()
+        usuario = supabase.table('usuarios').select('id, nombre, correo, telefono, direccion, role, created_at, last_login').eq('id', id).execute()
         if not usuario.data:
             return jsonify({"error": "Usuario no encontrado"}), 404
         return jsonify(usuario.data[0]), 200
@@ -49,15 +49,15 @@ def crear_usuario():
         data = request.get_json()
         
         # Verificar que los campos requeridos estén presentes
-        required_fields = ['nombre', 'email', 'password']
+        required_fields = ['nombre', 'correo', 'password']
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Campo requerido: {field}"}), 400
         
-        # Verificar si el email ya existe
-        check_email = supabase.table('usuarios').select('id').eq('email', data['email']).execute()
+        # Verificar si el correo ya existe
+        check_email = supabase.table('usuarios').select('id').eq('correo', data['correo']).execute()
         if check_email.data:
-            return jsonify({"error": "El email ya está registrado"}), 409
+            return jsonify({"error": "El correo ya está registrado"}), 409
         
         # Hashear la contraseña antes de guardarla
         password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
@@ -129,15 +129,15 @@ def login():
     try:
         data = request.get_json()
         
-        # Verificar que email y password estén presentes
-        if 'email' not in data or 'password' not in data:
-            return jsonify({"error": "Email y password son requeridos"}), 400
+        # Verificar que correo y password estén presentes
+        if 'correo' not in data or 'password' not in data:
+            return jsonify({"error": "Correo y password son requeridos"}), 400
         
         # Hashear la contraseña para compararla
         password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
         
-        # Buscar el usuario por email
-        usuario = supabase.table('usuarios').select('*').eq('email', data['email']).execute()
+        # Buscar el usuario por correo
+        usuario = supabase.table('usuarios').select('*').eq('correo', data['correo']).execute()
         
         if not usuario.data:
             return jsonify({"error": "Credenciales inválidas"}), 401

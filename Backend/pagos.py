@@ -4,16 +4,36 @@ from flask import Blueprint, request, jsonify
 from supabase import create_client
 import datetime
 import os
+import sys
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env si existe
 load_dotenv()
 
 # Supabase credenciales para la conexion - usando variables de entorno
-SUPABASE_URL = os.environ.get('SUPABASE_URL', "https://mhtytsmkqwydaixzjngz.supabase.co")
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1odHl0c21rcXd5ZGFpeHpqbmd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwNTE1MzIsImV4cCI6MjA1NjYyNzUzMn0.FBJE6ltV55xQwS1Ob_pHITgpryo3pNcT3kj--vA2JKI")
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Verificar que las credenciales de Supabase están configuradas
+if not SUPABASE_URL or not SUPABASE_KEY:
+    # En desarrollo, usa los valores predeterminados
+    if os.environ.get('FLASK_ENV') == 'development':
+        SUPABASE_URL = "https://mhtytsmkqwydaixzjngz.supabase.co"
+        SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1odHl0c21rcXd5ZGFpeHpqbmd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwNTE1MzIsImV4cCI6MjA1NjYyNzUzMn0.FBJE6ltV55xQwS1Ob_pHITgpryo3pNcT3kj--vA2JKI"
+        print("Warning: Using default Supabase credentials for development in pagos.py")
+    else:
+        # En producción, deben estar configuradas las variables de entorno
+        print("Error: SUPABASE_URL and SUPABASE_KEY environment variables must be set in production")
+        # No detener el módulo por este error, pero registrar claramente el problema
+
+# Inicializar cliente de Supabase
+try:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    print(f"Error initializing Supabase client in pagos.py: {e}")
+    if os.environ.get('FLASK_ENV') != 'development':
+        # En producción, es un error crítico pero no detenemos todo el sistema
+        print("Critical error in pagos module, payment functionality may not work")
 
 pagos_bp = Blueprint('pagos', __name__)
 
@@ -130,7 +150,7 @@ def procesar_pago_dividido():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@pagos_bp.route('/metodos-pago', methods=['GET'])
+@pagos_bp.route('/pagos/metodos', methods=['GET'])
 def obtener_metodos_pago():
     try:
         # Métodos de pago predefinidos o desde base de datos
@@ -156,7 +176,7 @@ def obtener_metodos_pago():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@pagos_bp.route('/metodos-pago', methods=['POST'])
+@pagos_bp.route('/pagos/metodos', methods=['POST'])
 def agregar_metodo_pago():
     try:
         data = request.get_json()
