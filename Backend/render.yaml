@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: karma-webapp
+    env: python
+    rootDirectoryPath: Backend
+    buildCommand: |
+      pip install -r requirements.txt
+      echo "Build completed successfully"
+    startCommand: python -m gunicorn app:app --workers=2 --timeout=120 --log-level=info
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: FLASK_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://karma-frontend.onrender.com
+    healthCheckPath: /
+    autoDeploy: true
+    scaling:
+      minInstances: 1
+      maxInstances: 3
