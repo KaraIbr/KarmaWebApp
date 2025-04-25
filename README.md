@@ -11,8 +11,4 @@ KarmaWebApp es una aplicación web moderna para la gestión integral de negocios
 - **Gestión de inventario**: Control de stock con alertas de existencias bajas.
 
 
-### Backend (Python/Flask)
 
-1. **Requisitos previos**:
-   - Python 3.11 o superior instalado
-  
