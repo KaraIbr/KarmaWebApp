@@ -9,11 +9,13 @@
   --gull-gray: #9DA6B8;
   --alto: #DADFEA;
   --snow-white: #FFFFFF;
+  --sidebar-bg: #361754; /* Color para el fondo del sidebar */
 }
 
 /* Estilo base para la barra lateral */
 .sidebar {
   width: 260px;
+  background-color: var(--sidebar-bg);
   height: 100%;
   position: fixed;
   top: 0;
@@ -21,12 +23,15 @@
   z-index: 1000;
   transition: transform 0.3s ease;
   box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
+  overflow-y: auto; /* Permitir scroll en el sidebar */
 }
 
 /* En dispositivos móviles, la barra lateral está oculta por defecto */
 @media (max-width: 767.98px) {
   .sidebar {
     transform: translateX(-100%);
+    width: 85%; /* Más ancho en móvil para facilitar la interacción */
+    max-width: 300px;
   }
   
   .sidebar.open {
@@ -35,14 +40,120 @@
   
   .mobile-toggle {
     display: block;
+    width: 45px;
+    height: 45px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  
+  /* Padding adicional para el contenido principal para que no choque con la barra inferior */
+  main {
+    padding-bottom: 70px;
   }
 }
 
-/* En dispositivos de escritorio, la barra lateral siempre está visible */
+/* Nueva navegación inferior para móviles */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background-color: var(--sidebar-bg);
+  display: flex;
+  justify-content: space-around;
+  z-index: 999;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--alto);
+  flex: 1;
+  position: relative;
+  padding: 8px 0;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.mobile-nav-item.active {
+  color: var(--lavender-start);
+}
+
+.mobile-nav-item:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-nav-item .item-icon {
+  position: relative;
+  font-size: 1.2rem;
+  margin-bottom: 4px;
+}
+
+.mobile-nav-item .item-label {
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 2px;
+}
+
+/* Badge para contador de carrito en móvil */
+.mobile-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(to right, var(--lavender-start), var(--lavender-end));
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* En dispositivos de escritorio, la barra lateral siempre está visible y no necesitamos navegación inferior */
 @media (min-width: 768px) {
   .mobile-toggle {
     display: none;
   }
+  
+  .mobile-bottom-nav {
+    display: none;
+  }
+}
+
+/* Estilos para el perfil de usuario */
+.user-profile {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.user-avatar {
+  font-size: 2rem;
+  color: var(--alto);
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-weight: bold;
+  color: var(--snow-white);
+}
+
+.user-role {
+  font-size: 0.8rem;
+  color: var(--alto);
+  opacity: 0.8;
 }
 
 /* Estilo para el overlay que oscurece el fondo cuando la barra lateral está abierta */
@@ -54,6 +165,7 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 999;
+  backdrop-filter: blur(2px); /* Efecto de desenfoque */
 }
 
 /* Estilos para los íconos en la barra lateral */
@@ -68,26 +180,30 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: bold;
+  font-size: 2rem; /* Título más grande */
+  letter-spacing: 1px;
 }
 
 /* Estilos para los enlaces de navegación */
 .sidebar .nav-link {
   color: var(--snow-white);
-  border-radius: 4px;
-  margin: 0 8px;
-  padding: 10px 15px;
+  border-radius: 8px; /* Bordes más redondeados */
+  margin: 4px 8px;
+  padding: 12px 15px;
   transition: all 0.2s ease;
 }
 
 /* Efectos al pasar el cursor sobre los enlaces */
 .sidebar .nav-link:hover {
   background-color: rgba(218, 223, 234, 0.1); /* Alto con transparencia */
+  transform: translateX(3px); /* Pequeño desplazamiento al hover */
 }
 
 /* Estilo para el enlace activo */
 .sidebar .nav-link.active {
   background-color: var(--alto);
   color: var(--cornflower-blue);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 /* Estilo para los botones principales */
@@ -96,6 +212,7 @@
   border-color: var(--cornflower-blue);
   color: var(--snow-white);
   transition: all 0.2s ease;
+  border-radius: 8px;
 }
 
 .btn-karma:hover {
@@ -114,4 +231,5 @@
 .sidebar .badge {
   padding: 5px 8px;
   border-radius: 12px;
+  font-weight: 500;
 }

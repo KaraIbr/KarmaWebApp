@@ -43,6 +43,7 @@
   z-index: 1030;
   transition: left 0.3s ease;
   overflow-y: auto;
+  background-color: #ff85e4;
 }
 
 .sidebar.open {

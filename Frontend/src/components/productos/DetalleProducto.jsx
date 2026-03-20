@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Badge, Button, Spinner, Alert } from 'react-bootstrap';
-
-const API_URL = 'http://127.0.0.1:5000/productos';
+import { API_URL, API_PREFIX } from '../../servicios/api.jsx';
 
 const DetalleProducto = ({ productId, onBack, onEdit, onAddToCart }) => {
   const [producto, setProducto] = useState(null);
@@ -20,7 +19,7 @@ const DetalleProducto = ({ productId, onBack, onEdit, onAddToCart }) => {
   const fetchProductDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/${productId}`);
+      const response = await fetch(`${API_URL}${API_PREFIX}productos/${productId}`);
       
       if (!response.ok) {
         throw new Error('No se pudo obtener los detalles del producto');

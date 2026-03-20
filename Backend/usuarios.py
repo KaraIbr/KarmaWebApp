@@ -64,17 +64,19 @@ def crear_usuario():
         # Hashear la contraseña antes de guardarla
         password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
         
-        # Reemplazar la contraseña plana con el hash
-        data['password'] = password_hash
-        
-        # Agregar campos adicionales (eliminar created_at que no existe)
-        data['role'] = data.get('role', 'cliente')  # Por defecto, rol cliente
+        # Crear objeto de datos para inserción con el nombre correcto del campo
+        insert_data = {
+            'nombre': data['nombre'],
+            'correo': data['correo'],
+            'contraseña': password_hash,  # Campo correcto en la base de datos
+            'role': data.get('role', 'user')  # Por defecto, rol usuario
+        }
         
         # Insertar el nuevo usuario
-        nuevo_usuario = supabase.table('usuarios').insert(data).execute()
+        nuevo_usuario = supabase.table('usuarios').insert(insert_data).execute()
         
         # No devolver la contraseña en la respuesta
-        usuario_respuesta = {k: v for k, v in nuevo_usuario.data[0].items() if k != 'password'}
+        usuario_respuesta = {k: v for k, v in nuevo_usuario.data[0].items() if k != 'contraseña'}
         
         return jsonify(usuario_respuesta), 201
     except Exception as e:
@@ -86,9 +88,12 @@ def actualizar_usuario(id):
     try:
         data = request.get_json()
         
-        # Si se está actualizando la contraseña, hashearla
+        # Si se está actualizando la contraseña, hashearla y usar el nombre correcto del campo
         if 'password' in data:
-            data['password'] = hashlib.sha256(data['password'].encode()).hexdigest()
+            password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+            # Eliminar 'password' y agregar 'contraseña' con el hash
+            data.pop('password')
+            data['contraseña'] = password_hash
         
         # Actualizar el usuario
         usuario_actualizado = supabase.table('usuarios').update(data).eq('id', id).execute()
@@ -98,7 +103,7 @@ def actualizar_usuario(id):
             return jsonify({"error": "Usuario no encontrado"}), 404
             
         # No devolver la contraseña en la respuesta
-        usuario_respuesta = {k: v for k, v in usuario_actualizado.data[0].items() if k != 'password'}
+        usuario_respuesta = {k: v for k, v in usuario_actualizado.data[0].items() if k != 'contraseña'}
         
         return jsonify(usuario_respuesta), 200
     except Exception as e:
@@ -136,15 +141,31 @@ def login():
         
         # Hashear la contraseña para compararla
         password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+        print(f"Hash generado para comparación: {password_hash}")
         
         # Buscar el usuario por correo
         usuario = supabase.table('usuarios').select('*').eq('correo', data['correo']).execute()
         
         if not usuario.data:
+            print(f"Usuario no encontrado con correo: {data['correo']}")
             return jsonify({"error": "Credenciales inválidas"}), 401
         
-        # Verificar la contraseña
-        if usuario.data[0]['password'] != password_hash:
+        # Imprimir información para depuración
+        print(f"Usuario encontrado: {usuario.data[0]['id']} - {usuario.data[0]['nombre']}")
+        print(f"Columnas disponibles: {list(usuario.data[0].keys())}")
+        
+        # Verificar la contraseña - campo correcto "contraseña" en la base de datos
+        stored_password = usuario.data[0].get('contraseña')
+        if not stored_password:
+            print("El campo 'contraseña' no existe en los datos del usuario")
+            # Intentar buscar alternativas
+            stored_password = usuario.data[0].get('password', '')
+            print(f"Contraseña encontrada en campo alternativo: {bool(stored_password)}")
+        
+        print(f"Contraseña almacenada: {stored_password}")
+        print(f"Coincidencia: {stored_password == password_hash}")
+        
+        if stored_password != password_hash:
             return jsonify({"error": "Credenciales inválidas"}), 401
         
         # Actualizar último login
@@ -154,7 +175,7 @@ def login():
         session_token = secrets.token_hex(32)
         
         # Preparar respuesta sin contraseña
-        usuario_respuesta = {k: v for k, v in usuario.data[0].items() if k != 'password'}
+        usuario_respuesta = {k: v for k, v in usuario.data[0].items() if k != 'contraseña' and k != 'password'}
         usuario_respuesta['token'] = session_token
         
         return jsonify({
@@ -214,14 +235,14 @@ def cambiar_password(id):
         if not usuario.data:
             return jsonify({"error": "Usuario no encontrado"}), 404
             
-        # Verificar contraseña actual
+        # Verificar contraseña actual con el campo correcto "contraseña"
         current_hash = hashlib.sha256(data['current_password'].encode()).hexdigest()
-        if usuario.data[0]['password'] != current_hash:
+        if usuario.data[0]['contraseña'] != current_hash:
             return jsonify({"error": "Contraseña actual incorrecta"}), 401
             
-        # Actualizar con nueva contraseña
+        # Actualizar con nueva contraseña - usando el nombre correcto del campo
         new_hash = hashlib.sha256(data['new_password'].encode()).hexdigest()
-        supabase.table('usuarios').update({'password': new_hash}).eq('id', id).execute()
+        supabase.table('usuarios').update({'contraseña': new_hash}).eq('id', id).execute()
         
         return jsonify({"message": "Contraseña actualizada correctamente"}), 200
         

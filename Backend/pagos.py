@@ -42,24 +42,84 @@ def procesar_pago():
     try:
         data = request.get_json()
         
-        # Validar que contenga los campos necesarios
-        campos_requeridos = ['venta_id', 'metodo_pago', 'monto']
-        for campo in campos_requeridos:
-            if campo not in data:
-                return jsonify({"error": f"Falta el campo requerido: {campo}"}), 400
-                
-        # Agregar fecha actual si no se proporciona
-        if 'fecha' not in data:
-            data['fecha'] = datetime.datetime.now().isoformat()
+        # Validación básica de datos
+        if not data:
+            return jsonify({"error": "No se recibieron datos del pago"}), 400
             
-        # Registrar el pago en la base de datos
-        nuevo_pago = supabase.table('pagos').insert(data).execute()
-        
-        return jsonify({
-            "mensaje": "Pago procesado correctamente",
-            "pago": nuevo_pago.data[0]
-        }), 201
-        
+        # Validar campos requeridos
+        campos_requeridos = ['venta_id', 'metodo_pago', 'monto']
+        campos_faltantes = [campo for campo in campos_requeridos if campo not in data]
+        if campos_faltantes:
+            return jsonify({
+                "error": "Datos incompletos", 
+                "campos_faltantes": campos_faltantes
+            }), 400
+            
+        # Validar monto positivo
+        if not isinstance(data['monto'], (int, float)) or data['monto'] <= 0:
+            return jsonify({"error": "El monto del pago debe ser un número mayor que cero"}), 400
+            
+        # Verificar si la venta existe y obtener detalles
+        try:
+            # Usar transacción para mantener consistencia
+            with supabase.table('ventas').select('*').eq('id', data['venta_id']) as venta_query:
+                venta = venta_query.execute()
+                
+                if not venta.data:
+                    return jsonify({"error": "La venta especificada no existe"}), 404
+                    
+                venta_data = venta.data[0]
+                total_venta = venta_data['total']
+                
+                # Validar estado de la venta
+                if venta_data.get('estado') == 'pagado':
+                    return jsonify({"error": "Esta venta ya está pagada completamente"}), 400
+                
+                # Obtener pagos existentes
+                pagos = supabase.table('pagos').select('monto').eq('venta_id', data['venta_id']).execute()
+                total_pagado = sum(pago['monto'] for pago in pagos.data)
+                saldo_pendiente = total_venta - total_pagado
+                
+                # Validar que no exceda el saldo pendiente
+                if data['monto'] > saldo_pendiente:
+                    return jsonify({
+                        "error": "El monto excede el saldo pendiente",
+                        "saldo_pendiente": saldo_pendiente,
+                        "monto_recibido": data['monto']
+                    }), 400
+                
+                # Preparar datos del pago
+                pago_data = {
+                    'venta_id': data['venta_id'],
+                    'metodo_pago': data['metodo_pago'],
+                    'monto': data['monto'],
+                    'referencia': data.get('referencia', ''),
+                    'estado': 'completado',
+                    'fecha': data.get('fecha', datetime.datetime.now().isoformat())
+                }
+                
+                # Registrar el pago
+                nuevo_pago = supabase.table('pagos').insert(pago_data).execute()
+                
+                # Actualizar estado de la venta si es necesario
+                if total_pagado + data['monto'] >= total_venta:
+                    supabase.table('ventas').update({
+                        'estado': 'pagado',
+                        'fecha_pago': datetime.datetime.now().isoformat()
+                    }).eq('id', data['venta_id']).execute()
+                
+                return jsonify({
+                    "mensaje": "Pago procesado correctamente",
+                    "pago": nuevo_pago.data[0],
+                    "total_venta": total_venta,
+                    "total_pagado": total_pagado + data['monto'],
+                    "saldo_pendiente": max(0, total_venta - (total_pagado + data['monto'])),
+                    "pago_completado": total_pagado + data['monto'] >= total_venta
+                }), 201
+                
+        except Exception as e:
+            return jsonify({"error": f"Error al procesar el pago: {str(e)}"}), 500
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -98,55 +158,112 @@ def procesar_pago_dividido():
     try:
         data = request.get_json()
         
-        # Validar que se proporcionen los pagos divididos
+        # Validación básica de la solicitud
+        if not data:
+            return jsonify({"error": "No se recibieron datos del pago"}), 400
+            
+        # Validar campos requeridos
         if 'pagos' not in data or not isinstance(data['pagos'], list):
             return jsonify({"error": "Se requiere una lista de pagos"}), 400
+        if not data['pagos']:
+            return jsonify({"error": "La lista de pagos está vacía"}), 400
             
-        # Validar que exista el ID de venta
         if 'venta_id' not in data:
             return jsonify({"error": "Falta el ID de venta"}), 400
             
-        venta_id = data['venta_id']
-        pagos = data['pagos']
-        
-        resultados = []
-        
-        # Procesar cada pago individualmente
-        for pago in pagos:
-            # Agregar venta_id a cada pago
-            pago['venta_id'] = venta_id
-            
-            # Validar campos mínimos en cada pago
-            if 'metodo_pago' not in pago or 'monto' not in pago:
-                resultados.append({
-                    "exito": False,
-                    "error": "Falta método de pago o monto",
-                    "pago": pago
-                })
-                continue
+        # Validar la venta y obtener el total
+        try:
+            # Usar transacción para mantener consistencia
+            with supabase.table('ventas').select('total,estado').eq('id', data['venta_id']) as venta_query:
+                venta = venta_query.execute()
+                if not venta.data:
+                    return jsonify({"error": "La venta especificada no existe"}), 404
+                    
+                venta_data = venta.data[0]
+                total_venta = venta_data['total']
                 
-            # Agregar fecha actual si no se proporciona
-            if 'fecha' not in pago:
-                pago['fecha'] = datetime.datetime.now().isoformat()
+                # Validar que la venta no esté ya pagada
+                if venta_data.get('estado') == 'pagado':
+                    return jsonify({"error": "Esta venta ya está pagada completamente"}), 400
                 
-            # Registrar el pago
-            nuevo_pago = supabase.table('pagos').insert(pago).execute()
+                # Obtener pagos existentes
+                pagos_existentes = supabase.table('pagos').select('monto').eq('venta_id', data['venta_id']).execute()
+                total_pagado_existente = sum(pago['monto'] for pago in pagos_existentes.data)
+                saldo_pendiente = total_venta - total_pagado_existente
+                
+                # Validar que existe saldo pendiente
+                if saldo_pendiente <= 0:
+                    return jsonify({
+                        "error": "La venta ya está pagada completamente",
+                        "total_venta": total_venta,
+                        "total_pagado": total_pagado_existente
+                    }), 400
+                
+                # Validar suma de pagos nuevos
+                total_pagos_nuevos = sum(pago.get('monto', 0) for pago in data['pagos'])
+                if total_pagos_nuevos > saldo_pendiente:
+                    return jsonify({
+                        "error": "El total de los pagos excede el saldo pendiente",
+                        "saldo_pendiente": saldo_pendiente,
+                        "total_pagos": total_pagos_nuevos
+                    }), 400
+                    
+                resultados = []
+                total_procesado = 0
+                
+                # Procesar cada pago
+                for pago in data['pagos']:
+                    # Validar campos mínimos
+                    if not pago.get('metodo_pago') or not isinstance(pago.get('monto'), (int, float)) or pago['monto'] <= 0:
+                        resultados.append({
+                            "exito": False,
+                            "error": "Datos de pago inválidos",
+                            "pago": pago
+                        })
+                        continue
+                    
+                    # Preparar datos del pago
+                    pago_data = {
+                        'venta_id': data['venta_id'],
+                        'metodo_pago': pago['metodo_pago'],
+                        'monto': pago['monto'],
+                        'referencia': pago.get('referencia', ''),
+                        'estado': 'completado',
+                        'fecha': pago.get('fecha', datetime.datetime.now().isoformat())
+                    }
+                    
+                    # Registrar el pago
+                    try:
+                        nuevo_pago = supabase.table('pagos').insert(pago_data).execute()
+                        total_procesado += pago['monto']
+                        resultados.append({
+                            "exito": True,
+                            "pago": nuevo_pago.data[0]
+                        })
+                    except Exception as e:
+                        resultados.append({
+                            "exito": False,
+                            "error": str(e),
+                            "pago": pago
+                        })
+                
+                # Actualizar estado de la venta si se completó el pago
+                if total_pagado_existente + total_procesado >= total_venta:
+                    supabase.table('ventas').update({
+                        'estado': 'pagado',
+                        'fecha_pago': datetime.datetime.now().isoformat()
+                    }).eq('id', data['venta_id']).execute()
+                
+                return jsonify({
+                    "mensaje": f"Procesados {len([r for r in resultados if r['exito']])} de {len(data['pagos'])} pagos",
+                    "total_procesado": total_procesado,
+                    "saldo_pendiente": max(0, saldo_pendiente - total_procesado),
+                    "resultados": resultados
+                }), 201
+                
+        except Exception as e:
+            return jsonify({"error": f"Error al procesar los pagos: {str(e)}"}), 500
             
-            resultados.append({
-                "exito": True,
-                "pago": nuevo_pago.data[0]
-            })
-            
-        # Calcular total procesado
-        total_procesado = sum(resultado['pago']['monto'] for resultado in resultados if resultado['exito'])
-        pagos_exitosos = sum(1 for resultado in resultados if resultado['exito'])
-        
-        return jsonify({
-            "mensaje": f"Procesados {pagos_exitosos} de {len(pagos)} pagos",
-            "total_procesado": total_procesado,
-            "resultados": resultados
-        }), 201
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

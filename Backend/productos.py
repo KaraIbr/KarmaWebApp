@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from supabase import create_client
 import hashlib
 import os
+import re
 
 # Supabase credenciales para la conexion - usando variables de entorno
 SUPABASE_URL = os.environ.get('SUPABASE_URL', "https://mhtytsmkqwydaixzjngz.supabase.co")
@@ -12,6 +13,40 @@ SUPABASE_KEY = os.environ.get('SUPABASE_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 productos_bp = Blueprint('productos', __name__)
+
+# Función para generar SKU basado en nombre, color y un contador
+def generar_sku(nombre, color):
+    try:
+        # Obtener las dos primeras letras del nombre y color
+        prefijo_nombre = re.sub(r'[^a-zA-Z]', '', nombre).upper()[:2] if nombre else "XX"
+        prefijo_color = re.sub(r'[^a-zA-Z]', '', color).upper()[:2] if color else "XX"
+        
+        # Buscar productos existentes con el mismo prefijo para obtener el último número
+        prefijo_busqueda = f"{prefijo_nombre}{prefijo_color}%"
+        resultado = supabase.table('productos').select('sku').like('sku', prefijo_busqueda).execute()
+        
+        # Obtener el número más alto actual
+        max_num = 0
+        if resultado.data:
+            for prod in resultado.data:
+                if prod.get('sku'):
+                    # Extraer el número al final del SKU
+                    match = re.search(r'(\d+)$', prod['sku'])
+                    if match:
+                        num = int(match.group(1))
+                        max_num = max(max_num, num)
+        
+        # Generar el nuevo SKU con el número incrementado
+        nuevo_num = max_num + 1
+        nuevo_sku = f"{prefijo_nombre}{prefijo_color}{nuevo_num}"
+        
+        return nuevo_sku
+    
+    except Exception as e:
+        print(f"Error generando SKU: {str(e)}")
+        # Si hay algún error, generar un SKU basado en timestamp
+        import time
+        return f"SKU{int(time.time())}"
 
 # Rutas para Productos (CRUD)
 @productos_bp.route('/productos', methods=['GET'])
@@ -38,6 +73,9 @@ def obtener_prod_by_id(id):
 def agregar_prod():
     try:
         data = request.get_json()
+        # Generar SKU automáticamente si no se proporciona
+        if 'sku' not in data or not data['sku']:
+            data['sku'] = generar_sku(data.get('nombre'), data.get('color'))
         nuevo_producto = supabase.table('productos').insert(data).execute()
         return jsonify(nuevo_producto.data[0]), 201
     except Exception as e:
@@ -71,21 +109,52 @@ def generar_codigo_qr(id):
         if not producto.data:
             return jsonify({"error": "Producto no encontrado"}), 404
         
-        # Generar un texto para el QR usando el ID del producto y un algoritmo hash
-        salt = "karma_product_qr_salt"  # Salt fijo para consistencia
-        text_to_hash = f"{id}_{salt}"
+        # Usar el SKU si existe, de lo contrario generar uno
+        sku = producto.data[0].get('sku')
+        if not sku:
+            # Si no tiene SKU asignado, generarlo y actualizarlo
+            sku = generar_sku(producto.data[0].get('nombre'), producto.data[0].get('color'))
+            # Actualizar el producto con el nuevo SKU
+            supabase.table('productos').update({'sku': sku}).eq('id', id).execute()
         
-        # Generar hash SHA-256
-        hash_object = hashlib.sha256(text_to_hash.encode())
-        hash_hex = hash_object.hexdigest()
-        
-        # Acortar el hash para un QR más compacto (primeros 16 caracteres)
-        short_code = hash_hex[:16]
+        # Generar el código QR que contenga tanto el SKU como el ID
+        qr_text = f"{sku}|{id}"
         
         # Devolver el código generado
         return jsonify({
             "producto_id": id,
-            "qr_code": short_code,
+            "qr_code": qr_text,
+            "sku": sku,
+            "producto_info": producto.data[0]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@productos_bp.route('/productos/<int:id>/barcode', methods=['GET'])
+def generar_codigo_barras(id):
+    try:
+        # Verificar que el producto existe
+        producto = supabase.table('productos').select('*').eq('id', id).execute()
+        if not producto.data:
+            return jsonify({"error": "Producto no encontrado"}), 404
+        
+        # Usar el SKU si existe, de lo contrario generar uno nuevo
+        sku = producto.data[0].get('sku')
+        if not sku:
+            # Si no tiene SKU asignado, generarlo y actualizarlo
+            sku = generar_sku(producto.data[0].get('nombre'), producto.data[0].get('color'))
+            # Actualizar el producto con el nuevo SKU
+            supabase.table('productos').update({'sku': sku}).eq('id', id).execute()
+        
+        # El código de barras se genera a partir del SKU
+        barcode_text = sku
+        
+        # Devolver el código generado
+        return jsonify({
+            "producto_id": id,
+            "barcode": barcode_text,
+            "sku": sku,
             "producto_info": producto.data[0]
         }), 200
         
@@ -108,19 +177,25 @@ def generar_etiquetas():
         
         # Generar datos para cada etiqueta
         for producto in productos.data:
-            # Generar código QR para el producto
-            id = producto['id']
-            salt = "karma_product_qr_salt"
-            text_to_hash = f"{id}_{salt}"
-            hash_object = hashlib.sha256(text_to_hash.encode())
-            hash_hex = hash_object.hexdigest()
-            short_code = hash_hex[:16]
+            # Usar el SKU existente o generar uno nuevo si no existe
+            sku = producto.get('sku')
+            if not sku:
+                sku = generar_sku(producto.get('nombre'), producto.get('color'))
+                # Actualizar el producto con el nuevo SKU
+                supabase.table('productos').update({'sku': sku}).eq('id', producto['id']).execute()
+            
+            # Crear contenido para QR (SKU|ID) y código de barras (solo SKU)
+            qr_content = f"{sku}|{producto['id']}"
+            barcode_content = sku
             
             etiqueta = {
-                "producto_id": id,
+                "producto_id": producto['id'],
+                "sku": sku,
                 "nombre": producto['nombre'],
                 "precio": producto['precio'],
-                "qr_code": short_code
+                "color": producto.get('color', 'N/A'),
+                "qr_code": qr_content,
+                "barcode": barcode_content
             }
             
             etiquetas.append(etiqueta)

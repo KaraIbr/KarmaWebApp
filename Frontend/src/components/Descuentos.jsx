@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Button, InputGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-
-const API_URL = 'http://127.0.0.1:5000';
+import { API_URL, API_PREFIX } from '../servicios/api.jsx';
 
 const Descuentos = ({ onApplyDiscount, currentDiscount }) => {
   const [discountCode, setDiscountCode] = useState('');

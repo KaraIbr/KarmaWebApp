@@ -28,11 +28,12 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
     },
     { 
       id: 'movil', 
-      name: 'Pago móvil', 
+      name: 'Pago móvil (Próximamente)', 
       icon: 'fa-mobile-alt',
       description: 'CoDi, aplicaciones de pago móvil',
       requiresReference: true,
-      requiresAppInfo: true
+      requiresAppInfo: true,
+      disabled: true
     },
     { 
       id: 'credito', 
@@ -62,7 +63,6 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
     isPaid: true,                 // Indica si el pago está completo
     clientName: '',               // Nombre del cliente (para créditos)
     clientId: '',                 // ID/documento del cliente
-    receiptType: 'ticket',        // Tipo de comprobante: ticket, factura, ninguno
     appUsed: '',                  // Aplicación usada para pago móvil
     mixedPayments: []             // Pagos múltiples para método mixto
   });
@@ -115,6 +115,9 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
   }, [paymentDetails.amount, selectedMethod, total, mixedPayments]);
 
   const handleSelectMethod = (method) => {
+    // No permitir seleccionar métodos deshabilitados
+    if (method.disabled) return;
+    
     // Si seleccionamos un método mixto, inicializamos los pagos mixtos
     if (method.id === 'mixto' && mixedPayments.length === 0) {
       setMixedPayments([{
@@ -278,28 +281,30 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
           {/* Selector de método de pago */}
           <Row>
             {paymentMethods.map(method => (
-              <Col md={6} key={method.id}>
+              <Col xs={12} sm={6} key={method.id}>
                 <div 
                   className={`mb-3 p-3 border rounded ${selectedMethod?.id === method.id ? 'border-primary' : ''}`}
                   style={{
-                    cursor: 'pointer',
-                    backgroundColor: selectedMethod?.id === method.id ? '#f8f4ff' : 'white',
-                    height: '100%'
+                    cursor: method.disabled ? 'not-allowed' : 'pointer',
+                    backgroundColor: selectedMethod?.id === method.id ? '#f8f4ff' : method.disabled ? '#f8f9fa' : 'white',
+                    height: '100%',
+                    opacity: method.disabled ? 0.6 : 1,
                   }}
-                  onClick={() => handleSelectMethod(method)}
+                  onClick={() => !method.disabled && handleSelectMethod(method)}
                 >
                   <Form.Check
                     type="radio"
                     id={`payment-${method.id}`}
                     checked={selectedMethod?.id === method.id}
-                    onChange={() => handleSelectMethod(method)}
+                    onChange={() => !method.disabled && handleSelectMethod(method)}
+                    disabled={method.disabled}
                     label={
                       <div className="d-flex align-items-center">
                         <div className="me-3">
                           <i 
                             className={`fas ${method.icon} fa-lg`} 
                             style={{ 
-                              color: selectedMethod?.id === method.id ? '#8c5cf2' : '#6c757d',
+                              color: selectedMethod?.id === method.id ? '#8c5cf2' : method.disabled ? '#adb5bd' : '#6c757d',
                               width: '24px'
                             }}
                           ></i>
@@ -325,7 +330,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
               <Row className="g-3">
                 {/* Campo para monto recibido (Efectivo) */}
                 {selectedMethod.requiresAmount && (
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group>
                       <Form.Label>Monto recibido</Form.Label>
                       <InputGroup>
@@ -345,7 +350,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
 
                 {/* Cambio a devolver (Efectivo) */}
                 {selectedMethod.showChange && (
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group>
                       <Form.Label>Cambio a devolver</Form.Label>
                       <InputGroup>
@@ -363,7 +368,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
 
                 {/* Últimos 4 dígitos de tarjeta */}
                 {selectedMethod.requiresCardDigits && (
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group>
                       <Form.Label>Últimos 4 dígitos</Form.Label>
                       <Form.Control
@@ -380,7 +385,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
 
                 {/* Número de referencia */}
                 {selectedMethod.requiresReference && (
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group>
                       <Form.Label>Referencia / Autorización</Form.Label>
                       <Form.Control
@@ -395,8 +400,8 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                 )}
                 
                 {/* Aplicación de pago móvil */}
-                {selectedMethod.requiresAppInfo && (
-                  <Col md={6}>
+                {selectedMethod.requiresAppInfo && !selectedMethod.disabled && (
+                  <Col xs={12} md={6}>
                     <Form.Group>
                       <Form.Label>Aplicación utilizada</Form.Label>
                       <Form.Select
@@ -418,7 +423,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                 {/* Información del cliente para créditos */}
                 {selectedMethod.requiresClientInfo && (
                   <>
-                    <Col md={6}>
+                    <Col xs={12} md={6}>
                       <Form.Group>
                         <Form.Label>Nombre del cliente</Form.Label>
                         <Form.Control
@@ -430,7 +435,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                         />
                       </Form.Group>
                     </Col>
-                    <Col md={6}>
+                    <Col xs={12} md={6}>
                       <Form.Group>
                         <Form.Label>ID/Documento del cliente</Form.Label>
                         <Form.Control
@@ -447,7 +452,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
 
                 {/* Nota para crédito o información adicional */}
                 {(selectedMethod.requiresNote || selectedMethod.id === 'credito') && (
-                  <Col md={12}>
+                  <Col xs={12}>
                     <Form.Group>
                       <Form.Label>
                         {selectedMethod.id === 'credito' ? 'Nota de crédito' : 'Nota adicional'}
@@ -463,44 +468,6 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                     </Form.Group>
                   </Col>
                 )}
-                
-                {/* Tipo de comprobante */}
-                <Col md={12}>
-                  <Form.Group className="mt-3">
-                    <Form.Label>Tipo de comprobante</Form.Label>
-                    <div className="d-flex">
-                      <Form.Check
-                        type="radio"
-                        id="receipt-ticket"
-                        name="receiptType"
-                        value="ticket"
-                        label="Ticket"
-                        checked={paymentDetails.receiptType === 'ticket'}
-                        onChange={handleInputChange}
-                        className="me-3"
-                      />
-                      <Form.Check
-                        type="radio"
-                        id="receipt-factura"
-                        name="receiptType"
-                        value="factura"
-                        label="Factura"
-                        checked={paymentDetails.receiptType === 'factura'}
-                        onChange={handleInputChange}
-                        className="me-3"
-                      />
-                      <Form.Check
-                        type="radio"
-                        id="receipt-none"
-                        name="receiptType"
-                        value="none"
-                        label="Sin comprobante"
-                        checked={paymentDetails.receiptType === 'none'}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </Form.Group>
-                </Col>
               </Row>
 
               {/* Alerta para pagos a crédito */}
@@ -527,8 +494,8 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
           {/* Sección para método de pago mixto */}
           {selectedMethod?.isMixed && (
             <div className="mt-4 p-3 border rounded bg-light">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6 className="mb-0">Detalles del pago mixto</h6>
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+                <h6 className="mb-2 mb-md-0">Detalles del pago mixto</h6>
                 <div>
                   <Badge bg={remainingAmount > 0 ? 'danger' : 'success'} className="me-2">
                     {remainingAmount > 0 ? `Falta: $${remainingAmount.toFixed(2)}` : 'Completo'}
@@ -561,14 +528,14 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                   
                   <h6>Pago {index + 1}</h6>
                   <Row className="g-3">
-                    <Col md={6}>
+                    <Col xs={12} md={6}>
                       <Form.Group>
                         <Form.Label>Método de pago</Form.Label>
                         <Form.Select
                           value={payment.methodId}
                           onChange={(e) => handleMixedPaymentChange(index, 'methodId', e.target.value)}
                         >
-                          {paymentMethods.filter(m => !m.isMixed).map(method => (
+                          {paymentMethods.filter(m => !m.isMixed && !m.disabled).map(method => (
                             <option key={method.id} value={method.id}>
                               {method.name}
                             </option>
@@ -577,7 +544,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                       </Form.Group>
                     </Col>
                     
-                    <Col md={6}>
+                    <Col xs={12} md={6}>
                       <Form.Group>
                         <Form.Label>Monto</Form.Label>
                         <InputGroup>
@@ -597,7 +564,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                     {/* Detalles específicos del método seleccionado */}
                     {payment.methodId === 'tarjeta' && (
                       <>
-                        <Col md={6}>
+                        <Col xs={12} md={6}>
                           <Form.Group>
                             <Form.Label>Últimos 4 dígitos</Form.Label>
                             <Form.Control
@@ -609,7 +576,7 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                             />
                           </Form.Group>
                         </Col>
-                        <Col md={6}>
+                        <Col xs={12} md={6}>
                           <Form.Group>
                             <Form.Label>Referencia</Form.Label>
                             <Form.Control
@@ -623,8 +590,8 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                       </>
                     )}
                     
-                    {(payment.methodId === 'transferencia' || payment.methodId === 'movil') && (
-                      <Col md={12}>
+                    {(payment.methodId === 'transferencia') && (
+                      <Col xs={12}>
                         <Form.Group>
                           <Form.Label>Referencia</Form.Label>
                           <Form.Control
@@ -636,66 +603,9 @@ const SelectorMetodoPago = ({ onSelectMethod, selectedMethod, total }) => {
                         </Form.Group>
                       </Col>
                     )}
-                    
-                    {payment.methodId === 'movil' && (
-                      <Col md={12}>
-                        <Form.Group>
-                          <Form.Label>Aplicación utilizada</Form.Label>
-                          <Form.Select
-                            value={payment.details.appUsed || ''}
-                            onChange={(e) => handleMixedPaymentChange(index, 'appUsed', e.target.value)}
-                          >
-                            <option value="">Selecciona una aplicación</option>
-                            <option value="codi">CoDi</option>
-                            <option value="mercadopago">Mercado Pago</option>
-                            <option value="clip">Clip</option>
-                            <option value="paypal">PayPal</option>
-                            <option value="otro">Otra</option>
-                          </Form.Select>
-                        </Form.Group>
-                      </Col>
-                    )}
                   </Row>
                 </div>
               ))}
-              
-              {/* Tipo de comprobante para pago mixto */}
-              <div className="mt-3">
-                <Form.Group>
-                  <Form.Label>Tipo de comprobante</Form.Label>
-                  <div className="d-flex">
-                    <Form.Check
-                      type="radio"
-                      id="receipt-ticket-mixed"
-                      name="receiptType"
-                      value="ticket"
-                      label="Ticket"
-                      checked={paymentDetails.receiptType === 'ticket'}
-                      onChange={handleInputChange}
-                      className="me-3"
-                    />
-                    <Form.Check
-                      type="radio"
-                      id="receipt-factura-mixed"
-                      name="receiptType"
-                      value="factura"
-                      label="Factura"
-                      checked={paymentDetails.receiptType === 'factura'}
-                      onChange={handleInputChange}
-                      className="me-3"
-                    />
-                    <Form.Check
-                      type="radio"
-                      id="receipt-none-mixed"
-                      name="receiptType"
-                      value="none"
-                      label="Sin comprobante"
-                      checked={paymentDetails.receiptType === 'none'}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </Form.Group>
-              </div>
               
               {/* Notas para el pago mixto */}
               <Form.Group className="mt-3">

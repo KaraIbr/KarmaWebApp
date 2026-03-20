@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Card, Row, Col, InputGroup, Alert } from 'react-bootstrap';
-
-const API_URL = 'http://127.0.0.1:5000/productos';
+import { API_URL, API_PREFIX } from '../../servicios/api.jsx';
 
 const FormularioProducto = ({ producto, onSubmitSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -9,6 +8,7 @@ const FormularioProducto = ({ producto, onSubmitSuccess, onCancel }) => {
     precio: '',
     stock: '',
     categoria: '',
+    color: '', // Añadido el campo color
   });
   
   const [validated, setValidated] = useState(false);
@@ -26,6 +26,7 @@ const FormularioProducto = ({ producto, onSubmitSuccess, onCancel }) => {
         precio: producto.precio || '',
         stock: producto.stock || '',
         categoria: producto.categoria || '',
+        color: producto.color || '', // Añadido para cargar el color cuando se edita
       });
     }
     
@@ -35,7 +36,7 @@ const FormularioProducto = ({ producto, onSubmitSuccess, onCancel }) => {
   
   const fetchCategorias = async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(`${API_URL}${API_PREFIX}productos`);
       const productos = await response.json();
       const uniqueCategorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))];
       setCategorias(uniqueCategorias);
@@ -62,21 +63,43 @@ const FormularioProducto = ({ producto, onSubmitSuccess, onCancel }) => {
       return;
     }
     
+    // Validación adicional específica para el color
+    if (!formData.color || formData.color.trim() === '') {
+      setError('El color es un campo obligatorio. Por favor ingrese un color.');
+      setValidated(true);
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
     try {
       const method = isEditing ? 'PUT' : 'POST';
-      const url = isEditing ? `${API_URL}/${producto.id}` : API_URL;
+      const url = isEditing ? `${API_URL}${API_PREFIX}productos/${producto.id}` : `${API_URL}${API_PREFIX}productos`;
+      
+      // Asegurarse de que todos los campos requeridos estén presentes
+      const productoData = {
+        ...formData,
+        precio: parseFloat(formData.precio),
+        stock: parseInt(formData.stock),
+        color: formData.color.trim() // Asegurarse de que el color no tenga espacios adicionales
+      };
+      
+      console.log('Enviando datos de producto:', productoData);
       
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(productoData)
       });
       
       if (!response.ok) {
-        throw new Error('Error al guardar el producto');
+        const errorData = await response.json().catch(() => null);
+        if (errorData && errorData.error) {
+          throw new Error(errorData.error);
+        } else {
+          throw new Error('Error al guardar el producto. Verifique todos los campos obligatorios.');
+        }
       }
       
       const result = await response.json();
@@ -191,6 +214,24 @@ const FormularioProducto = ({ producto, onSubmitSuccess, onCancel }) => {
                   />
                 )}
               </InputGroup>
+            </Form.Group>
+          </Row>
+          
+          {/* Nuevo campo para el color */}
+          <Row className="mb-3">
+            <Form.Group as={Col} xs={12}>
+              <Form.Label>Color *</Form.Label>
+              <Form.Control
+                type="text"
+                name="color"
+                value={formData.color}
+                onChange={handleChange}
+                placeholder="Ingrese el color del producto"
+                required
+              />
+              <Form.Control.Feedback type="invalid">
+                El color es obligatorio
+              </Form.Control.Feedback>
             </Form.Group>
           </Row>
           

@@ -1,25 +1,17 @@
 services:
   - type: web
-    name: karma-webapp
-    env: python
-    rootDirectoryPath: Backend
-    buildCommand: |
-      pip install -r requirements.txt
-      echo "Build completed successfully"
-    startCommand: python -m gunicorn app:app --workers=2 --timeout=120 --log-level=info
+    name: karma-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: chmod +x start.sh && ./start.sh
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
+      - key: SUPABASE_URL
+        value: https://mhtytsmkqwydaixzjngz.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1odHl0c21rcXd5ZGFpeHpqbmd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwNTE1MzIsImV4cCI6MjA1NjYyNzUzMn0.FBJE6ltV55xQwS1Ob_pHITgpryo3pNcT3kj--vA2JKI
       - key: FLASK_ENV
         value: production
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_KEY
-        sync: false
+      - key: SECRET_KEY
+        value: Karma_WebApp_Secret_Key_2025
       - key: FRONTEND_URL
-        value: https://karma-frontend.onrender.com
-    healthCheckPath: /
-    autoDeploy: true
-    scaling:
-      minInstances: 1
-      maxInstances: 3
+        value: https://karma-front.vercel.app

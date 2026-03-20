@@ -2,9 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { Card, Button, Badge, Form, Row, Col, Modal, InputGroup, Spinner, Alert, Container } from 'react-bootstrap';
 import { COLORS, THEME, getContrastColor } from '../servicios/theme';
 
-const API_URL = 'http://127.0.0.1:5000/productos';
-const API_USER_URL = 'http://127.0.0.1:5000/usuarios'; // API para obtener usuario
-const API_CART_URL = 'http://127.0.0.1:5000/carrito'; // URL base para carrito
+// Use environment variables for API URLs
+const API_BASE_URL =  'https://karmaapi-z51n.onrender.com';
+const API_URL = `${API_BASE_URL}/api/productos`;
+const API_USER_URL = `${API_BASE_URL}/api/usuarios`;
+const API_CART_URL = `${API_BASE_URL}/api/carrito`;
+
+// Lista de nombres de productos permitidos según la restricción de la base de datos
+const nombresPermitidos = ['Pulsera', 'Collar', 'Aretes', 'Tobillera'];
+
+// Colores para la interfaz en estilo minimalista
+const uiColors = {
+    primary: '#000000',           // Negro para elementos principales
+    secondary: '#666666',         // Gris medio para elementos secundarios
+    accent: '#111111',            // Acento sutilmente más claro que el primario
+    background: '#ffffff',        // Fondo blanco
+    border: '#eaeaea',            // Bordes muy sutiles
+    hover: '#fafafa',             // Color hover
+    success: '#10b981',           // Verde para éxito
+    danger: '#ef4444',            // Rojo para errores y alertas
+    warning: '#f59e0b'            // Naranja/ámbar para advertencias
+};
 
 const CrudProductos = () => {
     const [productos, setProductos] = useState([]);
@@ -18,7 +36,7 @@ const CrudProductos = () => {
         stock: '', 
         precio: '', 
         categoria: '', 
-        descripcion: '',
+        color: 'default', // Valor predeterminado para color
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -28,20 +46,16 @@ const CrudProductos = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [productoToDelete, setProductoToDelete] = useState(null);
     const [alertMessage, setAlertMessage] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+    const [viewMode, setViewMode] = useState('table'); // 'grid' or 'table'
+    const [ordenamiento, setOrdenamiento] = useState('reciente'); // Opciones de ordenamiento
 
-    // Colores para las categorías
-    const categoryColors = {
-        'Electrónica': COLORS.pastelVioleta,
-        'Ropa': COLORS.naranjaSuave,
-        'Alimentos': COLORS.verdeCalmado,
-        'Hogar': COLORS.violetaOscuro,
-        'Belleza': COLORS.naranjaIntenso,
-        'Deportes': '#fd7e14',
-        'Juguetes': '#17a2b8',
-        'Libros': '#20c997',
-        'default': COLORS.violetaOscuro
-    };
+    // Array de colores disponibles para productos
+    const [colores] = useState([
+        'default', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Negro',
+        'Blanco', 'Gris', 'Morado', 'Rosa', 'Naranja', 'Multicolor'
+    ]);
+
+
 
     useEffect(() => {
         obtener_prod();
@@ -59,6 +73,42 @@ const CrudProductos = () => {
         }
     }, [productos, searchTerm, filtroCategoria, filtroStock]);
 
+    // Aplicar ordenamiento a los resultados filtrados
+    useEffect(() => {
+        if (filteredProductos.length > 0) {
+            let sortedProducts = [...filteredProductos];
+            
+            // Ordenar según el criterio seleccionado
+            if (ordenamiento === 'reciente') {
+                // Suponiendo que el ID mayor es el más reciente
+                sortedProducts.sort((a, b) => b.id - a.id);
+            } else if (ordenamiento === 'antiguo') {
+                // Suponiendo que el ID menor es el más antiguo
+                sortedProducts.sort((a, b) => a.id - b.id);
+            } else if (ordenamiento === 'precio-asc') {
+                sortedProducts.sort((a, b) => parseFloat(a.precio) - parseFloat(b.precio));
+            } else if (ordenamiento === 'precio-desc') {
+                sortedProducts.sort((a, b) => parseFloat(b.precio) - parseFloat(a.precio));
+            }
+            
+            setFilteredProductos(sortedProducts);
+        }
+    }, [ordenamiento]);
+
+    // Manejo de errores y depuración
+    useEffect(() => {
+        if (error) {
+            console.error('Error en la aplicación:', error);
+        }
+    }, [error]);
+    
+    // Muestra mensajes de depuración cuando cambia el formData
+    useEffect(() => {
+        if (formData.nombre === 'Prueba') {
+            console.log('Estado actual del formulario para "Prueba":', formData);
+        }
+    }, [formData]);
+
     // Actualización de la función applyFilters para manejar solo agotados y disponibles
     const applyFilters = () => {
         let results = [...productos];
@@ -67,8 +117,7 @@ const CrudProductos = () => {
         if (searchTerm) {
             results = results.filter(producto => 
                 producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (producto.id && producto.id.toString().includes(searchTerm)) || // Filtrar por SKU/ID
-                (producto.descripcion && producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
+                (producto.id && producto.id.toString().includes(searchTerm))
             );
         }
         
@@ -130,7 +179,7 @@ const CrudProductos = () => {
             stock: '', 
             precio: '', 
             categoria: '', 
-            descripcion: '',
+            color: 'default', // Valor predeterminado para color
         });
         setModalVisible(true);
     };
@@ -139,7 +188,6 @@ const CrudProductos = () => {
         setEditingProducto(producto);
         setFormData({
             ...producto,
-            descripcion: producto.descripcion || '',
         });
         setModalVisible(true);
     };
@@ -175,24 +223,82 @@ const CrudProductos = () => {
             const method = editingProducto ? 'PUT' : 'POST';
             const url = editingProducto ? `${API_URL}/${editingProducto.id}` : API_URL;
             
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            
-            if (!response.ok) {
-                throw new Error('Error al guardar el producto');
+            // Validar que se ha seleccionado un tipo de joya válido
+            if (!formData.nombre || !nombresPermitidos.includes(formData.nombre)) {
+                throw new Error('Debe seleccionar un tipo de joya válido: Pulsera, Collar, Aretes o Tobillera');
+            }
+
+            // Validar que se ha seleccionado una categoría
+            if (!formData.categoria) {
+                throw new Error('Debe seleccionar una categoría para el producto');
             }
             
-            obtener_prod();
-            setModalVisible(false);
+            // Preparar los datos correctamente para enviar al servidor
+            const productoData = {
+                nombre: formData.nombre, // Debe ser uno de los valores permitidos
+                stock: parseInt(formData.stock, 10) || 0,
+                precio: parseFloat(formData.precio) || 0,
+                categoria: formData.categoria,
+                color: formData.color || 'default',
+            };
             
-            const action = editingProducto ? 'actualizado' : 'creado';
-            showAlert('success', `Producto ${action} correctamente.`);
+            console.log('Enviando datos al servidor:', productoData);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(productoData),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                console.log('Status code:', response.status);
+                console.log('Status text:', response.statusText);
+                
+                if (!response.ok) {
+                    let errorMessage = `Error del servidor: ${response.status} ${response.statusText}`;
+                    
+                    try {
+                        const errorData = await response.json();
+                        console.error('Error data:', errorData);
+                        
+                        if (errorData && errorData.error) {
+                            if (errorData.error.includes('productos_nombre_check')) {
+                                errorMessage = 'El nombre del producto debe ser uno de los siguientes: Pulsera, Collar, Aretes o Tobillera. Otros valores no están permitidos por la base de datos.';
+                            } else {
+                                errorMessage = `Error: ${errorData.error}`;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('No se pudo parsear la respuesta de error como JSON:', e);
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                obtener_prod();
+                setModalVisible(false);
+                
+                const action = editingProducto ? 'actualizado' : 'creado';
+                showAlert('success', `Producto ${action} correctamente.`);
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                if (fetchError.name === 'AbortError') {
+                    throw new Error('La solicitud ha tardado demasiado tiempo. Por favor, inténtelo de nuevo.');
+                }
+                throw fetchError;
+            }
         } catch (error) {
-            console.error('Error al guardar producto', error);
-            showAlert('danger', 'No se pudo guardar el producto. Por favor, intente nuevamente.');
+            console.error('Error al guardar producto:', error);
+            showAlert('danger', `No se pudo guardar el producto: ${error.message}`);
         }
     };
 
@@ -203,7 +309,7 @@ const CrudProductos = () => {
         };
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/carrito', {
+            const response = await fetch(API_CART_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
@@ -236,17 +342,60 @@ const CrudProductos = () => {
     };
 
     const getCategoryBadge = (categoria) => {
-        const color = categoryColors[categoria] || categoryColors.default;
+        // Usar colores del tema de la interfaz en lugar de categoryColors que no existe
         return (
             <Badge 
                 pill 
-                style={{ backgroundColor: color, fontSize: '0.8rem', padding: '0.35em 0.65em' }}
+                style={{ 
+                    backgroundColor: uiColors.hover, 
+                    color: uiColors.secondary,
+                    fontSize: '0.8rem', 
+                    padding: '0.35em 0.65em' 
+                }}
             >
                 {categoria || 'Sin categoría'}
             </Badge>
         );
     };
     
+    const getColorBackground = (colorName) => {
+        const colorMap = {
+            'default': '#ced4da',
+            'Rojo': '#dc3545',
+            'Azul': '#0d6efd',
+            'Verde': '#198754',
+            'Amarillo': '#ffc107',
+            'Negro': '#212529',
+            'Blanco': '#f8f9fa',
+            'Gris': '#6c757d',
+            'Morado': '#6f42c1',
+            'Rosa': '#e83e8c',
+            'Naranja': '#fd7e14',
+            'Multicolor': 'linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet)'
+        };
+        return colorMap[colorName] || colorMap.default;
+    };
+
+    const getColorBadge = (color) => {
+        const backgroundColor = getColorBackground(color || 'default');
+        const textColor = color === 'Blanco' || color === 'Amarillo' ? '#212529' : '#ffffff';
+        
+        return (
+            <Badge 
+                style={{ 
+                    backgroundColor: backgroundColor, 
+                    color: textColor,
+                    fontSize: '0.75rem',
+                    padding: '0.35em 0.65em',
+                    marginLeft: '0.5rem',
+                    border: color === 'Blanco' ? '1px solid #ced4da' : 'none'
+                }}
+            >
+                {color === 'default' ? 'Color básico' : color}
+            </Badge>
+        );
+    };
+
     const handleClearFilters = () => {
         setSearchTerm('');
         setFiltroCategoria('todas');
@@ -257,47 +406,184 @@ const CrudProductos = () => {
         <Row xs={1} sm={2} md={3} lg={4} className="g-4">
             {filteredProductos.map((producto) => (
                 <Col key={producto.id}>
-                    <Card className="h-100 shadow-sm hover-card">
-                        <Card.Body className="d-flex flex-column">
-                            <div className="mb-2 d-flex justify-content-between align-items-center">
-                                {getCategoryBadge(producto.categoria)}
-                                {getStockBadge(producto.stock)}
+                    <Card className="h-100" style={{ 
+                        border: `1px solid ${uiColors.border}`,
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                    onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 12px 20px -10px rgba(0, 0, 0, 0.1)';
+                    }}
+                    onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+                    }}>
+                        <Card.Body className="d-flex flex-column p-4">
+                            <div className="mb-3 d-flex justify-content-between align-items-center">
+                                <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    fontFamily: 'monospace', 
+                                    backgroundColor: uiColors.hover, 
+                                    color: uiColors.secondary,
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '4px'
+                                }}>
+                                    SKU: {producto.id}
+                                </span>
+                                {producto.stock <= 0 ? (
+                                    <span style={{ 
+                                        backgroundColor: uiColors.danger + '20',
+                                        color: uiColors.danger,
+                                        fontSize: '0.75rem',
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                    }}>
+                                        Agotado
+                                    </span>
+                                ) : (
+                                    <span style={{ 
+                                        backgroundColor: uiColors.success + '20',
+                                        color: uiColors.success,
+                                        fontSize: '0.75rem',
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                    }}>
+                                        Stock: {producto.stock}
+                                    </span>
+                                )}
                             </div>
-                            <Card.Title className="font-weight-bold">
+
+                            <h5 style={{ 
+                                fontSize: '1rem', 
+                                fontWeight: '600',
+                                marginBottom: '0.5rem',
+                                color: uiColors.primary
+                            }}>
                                 {producto.nombre}
-                                <span className="d-block text-muted small mt-1">SKU: {producto.id}</span>
-                            </Card.Title>
-                            <Card.Text className="text-muted small">
-                                {producto.descripcion || 'Sin descripción'}
-                            </Card.Text>
-                            <Card.Text className="product-price mt-auto mb-2">
+                            </h5>
+
+                            <div className="d-flex align-items-center mb-3">
+                                <span style={{
+                                    backgroundColor: uiColors.hover,
+                                    color: uiColors.secondary,
+                                    fontSize: '0.75rem',
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '4px',
+                                    marginRight: '8px'
+                                }}>
+                                    {producto.categoria || 'Sin categoría'}
+                                </span>
+
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    <div style={{ 
+                                        width: '14px', 
+                                        height: '14px', 
+                                        borderRadius: '50%', 
+                                        backgroundColor: getColorBackground(producto.color || 'default'),
+                                        border: producto.color === 'Blanco' ? '1px solid #ddd' : 'none'
+                                    }}></div>
+                                    <span style={{ fontSize: '0.75rem', color: uiColors.secondary }}>
+                                        {producto.color === 'default' ? '-' : producto.color}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style={{ 
+                                fontSize: '1.25rem', 
+                                fontWeight: 'bold', 
+                                marginBottom: '1rem',
+                                marginTop: 'auto',
+                                color: uiColors.primary
+                            }}>
                                 ${parseFloat(producto.precio).toFixed(2)}
-                            </Card.Text>
-                            <div className="d-flex justify-content-between mt-auto">
-                                <Button
-                                    variant="outline-primary"
-                                    size="sm"
-                                    className="mr-2"
+                            </div>
+                            
+                            <div className="d-flex gap-2 mt-2">
+                                <button
                                     onClick={() => handleEdit(producto)}
+                                    title="Editar"
+                                    style={{
+                                        flex: '1',
+                                        background: uiColors.hover,
+                                        border: `1px solid ${uiColors.border}`,
+                                        cursor: 'pointer',
+                                        color: uiColors.secondary,
+                                        padding: '0.5rem',
+                                        borderRadius: '6px',
+                                        fontSize: '0.875rem',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.backgroundColor = uiColors.border;
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.backgroundColor = uiColors.hover;
+                                    }}
                                 >
                                     <i className="fas fa-edit me-1"></i> Editar
-                                </Button>
-                                <Button
-                                    variant="outline-danger"
-                                    size="sm"
+                                </button>
+                                <button
                                     onClick={() => confirmDelete(producto)}
+                                    title="Eliminar"
+                                    style={{
+                                        background: uiColors.danger + '10',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        color: uiColors.danger,
+                                        padding: '0.5rem',
+                                        borderRadius: '6px',
+                                        fontSize: '0.875rem',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.backgroundColor = uiColors.danger + '20';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.backgroundColor = uiColors.danger + '10';
+                                    }}
                                 >
-                                    <i className="fas fa-trash me-1"></i> Eliminar
-                                </Button>
+                                    <i className="fas fa-trash"></i>
+                                </button>
                             </div>
-                            <Button
-                                variant="primary"
-                                className="w-100 mt-2"
+                            <button
                                 onClick={() => agregarAlCarrito(producto.id)}
                                 disabled={producto.stock <= 0}
+                                style={{
+                                    width: '100%',
+                                    marginTop: '0.5rem',
+                                    padding: '0.5rem',
+                                    background: producto.stock <= 0 ? uiColors.hover : uiColors.primary,
+                                    color: producto.stock <= 0 ? uiColors.secondary : '#fff',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    cursor: producto.stock <= 0 ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                onMouseOver={(e) => {
+                                    if (producto.stock > 0) {
+                                        e.currentTarget.style.backgroundColor = uiColors.accent;
+                                    }
+                                }}
+                                onMouseOut={(e) => {
+                                    if (producto.stock > 0) {
+                                        e.currentTarget.style.backgroundColor = uiColors.primary;
+                                    }
+                                }}
                             >
-                                <i className="fas fa-cart-plus me-1"></i> Agregar al carrito
-                            </Button>
+                                <i className="fas fa-cart-plus me-1"></i> 
+                                {producto.stock <= 0 ? 'Agotado' : 'Agregar al carrito'}
+                            </button>
                         </Card.Body>
                     </Card>
                 </Col>
@@ -306,70 +592,152 @@ const CrudProductos = () => {
     );
 
     const ProductosTable = () => (
-        <div className="table-responsive shadow rounded">
-            <table className="table table-hover table-striped mb-0">
-                <thead className="bg-light">
-                    <tr>
-                        <th>SKU</th>
-                        <th>Nombre</th>
-                        <th>Stock</th>
-                        <th>Precio</th>
-                        <th>Categoría</th>
-                        <th>Acciones</th>
+        <div className="table-responsive">
+            <table className="table table-hover mb-0" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                    <tr style={{ borderBottom: `1px solid ${uiColors.border}` }}>
+                        <th className="sticky-col" style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem', minWidth: '80px' }}>SKU</th>
+                        <th style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem' }}>Tipo</th>
+                        <th style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem' }}>Color</th>
+                        <th style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem' }}>Stock</th>
+                        <th style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem' }}>Precio</th>
+                        <th style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem' }}>Categoría</th>
+                        <th style={{ fontWeight: '500', color: uiColors.secondary, fontSize: '0.875rem' }}>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredProductos.map((producto) => (
-                        <tr key={producto.id}>
-                            <td><span className="badge bg-light text-dark">{producto.id}</span></td>
-                            <td>
-                                <span className="fw-medium">{producto.nombre}</span>
-                                {producto.descripcion && (
-                                    <div className="small text-muted text-truncate" style={{maxWidth: "200px"}}>
-                                        {producto.descripcion}
-                                    </div>
-                                )}
+                    {filteredProductos.map((producto, idx) => (
+                        <tr key={producto.id} style={{ 
+                            borderBottom: `1px solid ${uiColors.border}`,
+                            backgroundColor: idx % 2 === 0 ? 'transparent' : uiColors.hover
+                        }}>
+                            <td className="sticky-col" style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle' }}>
+                                <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: uiColors.secondary,
+                                    fontWeight: '500'
+                                }}>
+                                    {producto.id}
+                                </span>
                             </td>
-                            <td>
+                            <td style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle', fontWeight: '500' }}>
+                                {producto.nombre}
+                            </td>
+                            <td style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle' }}>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    <div style={{ 
+                                        width: '16px', 
+                                        height: '16px', 
+                                        borderRadius: '50%', 
+                                        backgroundColor: getColorBackground(producto.color || 'default'),
+                                        border: producto.color === 'Blanco' ? '1px solid #ddd' : 'none'
+                                    }}></div>
+                                    <span style={{ fontSize: '0.8rem', color: uiColors.secondary }}>
+                                        {producto.color === 'default' ? '-' : producto.color}
+                                    </span>
+                                </div>
+                            </td>
+                            <td style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle' }}>
                                 {producto.stock <= 0 ? (
-                                    <Badge bg="danger" style={{ backgroundColor: COLORS.naranjaIntenso }}>Agotado</Badge>
+                                    <span style={{ 
+                                        backgroundColor: uiColors.danger + '20',
+                                        color: uiColors.danger,
+                                        fontSize: '0.75rem',
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                    }}>
+                                        Agotado
+                                    </span>
                                 ) : (
-                                    <Badge bg="success" style={{ backgroundColor: COLORS.cornflowerBlue }}>
+                                    <span style={{ 
+                                        backgroundColor: uiColors.success + '20',
+                                        color: uiColors.success,
+                                        fontSize: '0.75rem',
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                    }}>
                                         {producto.stock}
-                                    </Badge>
+                                    </span>
                                 )}
                             </td>
-                            <td className="fw-bold">${parseFloat(producto.precio).toFixed(2)}</td>
-                            <td>{getCategoryBadge(producto.categoria)}</td>
-                            <td>
-                                <div className="btn-group btn-group-sm">
-                                    <Button
-                                        variant="outline-primary"
-                                        size="sm"
+                            <td style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle', fontWeight: '600' }}>
+                                ${parseFloat(producto.precio).toFixed(2)}
+                            </td>
+                            <td style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle' }}>
+                                <span style={{
+                                    backgroundColor: uiColors.hover,
+                                    color: uiColors.secondary,
+                                    fontSize: '0.75rem',
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '4px'
+                                }}>
+                                    {producto.categoria || 'Sin categoría'}
+                                </span>
+                            </td>
+                            <td style={{ fontSize: '0.875rem', padding: '12px 16px', verticalAlign: 'middle' }}>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
                                         onClick={() => handleEdit(producto)}
                                         title="Editar"
-                                        className="me-1"
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            color: uiColors.secondary,
+                                            padding: '4px',
+                                            borderRadius: '4px',
+                                            transition: 'background-color 0.15s'
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = uiColors.hover}
+                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                     >
                                         <i className="fas fa-edit"></i>
-                                    </Button>
-                                    <Button
-                                        variant="outline-danger"
-                                        size="sm"
+                                    </button>
+                                    <button
                                         onClick={() => confirmDelete(producto)}
                                         title="Eliminar"
-                                        className="me-1"
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            color: uiColors.danger,
+                                            padding: '4px',
+                                            borderRadius: '4px',
+                                            transition: 'background-color 0.15s'
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = uiColors.danger + '10'}
+                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                     >
                                         <i className="fas fa-trash"></i>
-                                    </Button>
-                                    <Button
-                                        variant="outline-success"
-                                        size="sm"
+                                    </button>
+                                    <button
                                         onClick={() => agregarAlCarrito(producto.id)}
                                         title="Agregar al Carrito"
                                         disabled={producto.stock <= 0}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: producto.stock <= 0 ? 'not-allowed' : 'pointer',
+                                            color: producto.stock <= 0 ? '#ccc' : uiColors.success,
+                                            padding: '4px',
+                                            borderRadius: '4px',
+                                            transition: 'background-color 0.15s'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            if (producto.stock > 0) {
+                                                e.currentTarget.style.backgroundColor = uiColors.success + '10'
+                                            }
+                                        }}
+                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                     >
                                         <i className="fas fa-cart-plus"></i>
-                                    </Button>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -380,7 +748,7 @@ const CrudProductos = () => {
     );
 
     return (
-        <Container fluid className="py-4 px-lg-5" style={{ backgroundColor: COLORS.beigeClaro }}>
+        <Container fluid className="py-4 px-lg-5" style={{ }}>
             {/* Header con título y botones principales */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
@@ -399,24 +767,28 @@ const CrudProductos = () => {
                         className="me-2"
                         onClick={() => setViewMode(viewMode === 'grid' ? 'table' : 'grid')}
                         style={{ 
-                            borderColor: COLORS.violetaOscuro, 
-                            color: COLORS.violetaOscuro 
+                            borderColor: uiColors.border, 
+                            color: uiColors.secondary,
+                            backgroundColor: 'transparent',
+                            fontSize: '0.875rem',
+                            fontWeight: '500'
                         }}
                     >
                         <i className={`fas fa-${viewMode === 'grid' ? 'table' : 'th-large'} me-1`}></i>
-                        Vista {viewMode === 'grid' ? 'tabla' : 'cuadrícula'}
+                         {viewMode === 'grid' ? 'tabla' : 'cuadrícula'}
                     </Button>
                     <Button
                         variant="primary"
                         style={{ 
-                            backgroundColor: COLORS.naranjaIntenso, 
-                            borderColor: COLORS.naranjaIntenso,
-                            boxShadow: '0 2px 4px rgba(241, 100, 46, 0.3)'
+                            backgroundColor: uiColors.primary, 
+                            borderColor: uiColors.primary,
+                            fontSize: '0.875rem',
+                            fontWeight: '500'
                         }}
                         onClick={handleAdd}
                     >
                         <i className="fas fa-plus me-1"></i>
-                        Añadir Producto
+                    Nuevo
                     </Button>
                 </div>
             </div>
@@ -430,28 +802,42 @@ const CrudProductos = () => {
             )}
 
             {/* Filtros */}
-            <Card className="mb-4 shadow-sm" style={{ backgroundColor: '#DADFEA', borderColor: '#9DA6B8' }}>
+            <Card className="mb-4 shadow-sm" style={{ 
+                backgroundColor: uiColors.background, 
+                borderColor: uiColors.border,
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+            }}>
                 <Card.Body>
                     <Row>
-                        <Col md={4}>
+                        <Col md={3}>
                             <Form.Group className="mb-md-0 mb-3">
-                                <Form.Label style={{ color: '#5A6170' }}><i className="fas fa-search me-1"></i> Buscar</Form.Label>
+                                <Form.Label style={{ color: uiColors.secondary, fontWeight: '500', fontSize: '0.875rem' }}>
+                                    <i className="fas fa-search me-1"></i> Buscar
+                                </Form.Label>
                                 <Form.Control
                                     type="text"
                                     placeholder="Buscar productos..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={{ borderColor: '#9DA6B8' }}
+                                    style={{ 
+                                        borderColor: uiColors.border,
+                                        fontSize: '0.875rem'
+                                    }}
                                 />
                             </Form.Group>
                         </Col>
-                        <Col md={3}>
+                        <Col md={2}>
                             <Form.Group className="mb-md-0 mb-3">
-                                <Form.Label style={{ color: '#5A6170' }}><i className="fas fa-tag me-1"></i> Categoría</Form.Label>
+                                <Form.Label style={{ color: uiColors.secondary, fontWeight: '500', fontSize: '0.875rem' }}>
+                                    <i className="fas fa-tag me-1"></i> Categoría
+                                </Form.Label>
                                 <Form.Select
                                     value={filtroCategoria}
                                     onChange={(e) => setFiltroCategoria(e.target.value)}
-                                    style={{ borderColor: '#9DA6B8' }}
+                                    style={{ 
+                                        borderColor: uiColors.border,
+                                        fontSize: '0.875rem'
+                                    }}
                                 >
                                     <option value="todas">Todas las categorías</option>
                                     {categorias.map((cat) => (
@@ -460,17 +846,42 @@ const CrudProductos = () => {
                                 </Form.Select>
                             </Form.Group>
                         </Col>
-                        <Col md={3}>
+                        <Col md={2}>
                             <Form.Group className="mb-md-0 mb-3">
-                                <Form.Label style={{ color: '#5A6170' }}><i className="fas fa-cubes me-1"></i> Stock</Form.Label>
+                                <Form.Label style={{ color: uiColors.secondary, fontWeight: '500', fontSize: '0.875rem' }}>
+                                    <i className="fas fa-cubes me-1"></i> Stock
+                                </Form.Label>
                                 <Form.Select
                                     value={filtroStock}
                                     onChange={(e) => setFiltroStock(e.target.value)}
-                                    style={{ borderColor: '#9DA6B8' }}
+                                    style={{ 
+                                        borderColor: uiColors.border,
+                                        fontSize: '0.875rem'
+                                    }}
                                 >
                                     <option value="todos">Todos los productos</option>
                                     <option value="disponible">En stock</option>
                                     <option value="agotado">Agotados</option>
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                        <Col md={3}>
+                            <Form.Group className="mb-md-0 mb-3">
+                                <Form.Label style={{ color: uiColors.secondary, fontWeight: '500', fontSize: '0.875rem' }}>
+                                    <i className="fas fa-sort me-1"></i> Ordenar por
+                                </Form.Label>
+                                <Form.Select
+                                    value={ordenamiento}
+                                    onChange={(e) => setOrdenamiento(e.target.value)}
+                                    style={{ 
+                                        borderColor: uiColors.border,
+                                        fontSize: '0.875rem'
+                                    }}
+                                >
+                                    <option value="reciente">Más recientes primero</option>
+                                    <option value="antiguo">Más antiguos primero</option>
+                                    <option value="precio-asc">Precio: menor a mayor</option>
+                                    <option value="precio-desc">Precio: mayor a menor</option>
                                 </Form.Select>
                             </Form.Group>
                         </Col>
@@ -480,9 +891,11 @@ const CrudProductos = () => {
                                 className="w-100"
                                 onClick={handleClearFilters}
                                 style={{ 
-                                    borderColor: '#5A6170', 
-                                    color: '#5A6170',
-                                    backgroundColor: 'transparent'
+                                    borderColor: uiColors.border, 
+                                    color: uiColors.secondary,
+                                    backgroundColor: 'transparent',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500'
                                 }}
                             >
                                 <i className="fas fa-filter-circle-xmark me-1"></i> Limpiar
@@ -554,14 +967,23 @@ const CrudProductos = () => {
                         <Row className="mb-3">
                             <Col md={6}>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Nombre del producto</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="Nombre del producto"
+                                    <Form.Label>
+                                        <i className="fas fa-tag me-1"></i> Tipo de Joya
+                                    </Form.Label>
+                                    <Form.Select
                                         value={formData.nombre}
                                         onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                         required
-                                    />
+                                        className="shadow-sm"
+                                    >
+                                        <option value="">Seleccionar tipo de joya</option>
+                                        {nombresPermitidos.map(nombre => (
+                                            <option key={nombre} value={nombre}>{nombre}</option>
+                                        ))}
+                                    </Form.Select>
+                                    <Form.Text className="text-muted mt-1">
+                                        La base de datos solo permite estos tipos específicos de productos
+                                    </Form.Text>
                                 </Form.Group>
 
                                 <Form.Group className="mb-3">
@@ -617,55 +1039,40 @@ const CrudProductos = () => {
                                     </Form.Group>
                                 )}
                             </Col>
-                            
                             <Col md={6}>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Descripción</Form.Label>
-                                    <Form.Control
-                                        as="textarea"
-                                        rows={5}
-                                        placeholder="Descripción del producto"
-                                        value={formData.descripcion}
-                                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                                    />
+                                    <Form.Label><i className="fas fa-palette me-1"></i> Color</Form.Label>
+                                    <InputGroup>
+                                        <div 
+                                            className="color-preview me-2 d-flex align-items-center justify-content-center" 
+                                            style={{
+                                                width: '38px',
+                                                height: '38px',
+                                                borderRadius: '5px',
+                                                background: getColorBackground(formData.color || 'default'),
+                                                border: formData.color === 'Blanco' ? '1px solid #ced4da' : 'none'
+                                            }}
+                                        >
+                                            {formData.color === 'Multicolor' && <i className="fas fa-palette text-white"></i>}
+                                        </div>
+                                        <Form.Select
+                                            value={formData.color || 'default'}
+                                            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                            className="shadow-sm"
+                                        >
+                                            {colores.map(color => (
+                                                <option key={color} value={color}>
+                                                    {color === 'default' ? 'Color por defecto' : color}
+                                                </option>
+                                            ))}
+                                        </Form.Select>
+                                    </InputGroup>
+                                    <Form.Text className="text-muted">
+                                        Si no se especifica, se usará "default" como color
+                                    </Form.Text>
                                 </Form.Group>
                             </Col>
                         </Row>
-
-                        <hr />
-                        
-                        <div className="product-preview p-3">
-                            <h6 className="mb-3">Vista previa</h6>
-                            <div className="d-flex">
-                                <div>
-                                    <h5 className="mb-1">{formData.nombre || 'Nombre del producto'}</h5>
-                                    <div className="mb-2">
-                                        {formData.categoria && (
-                                            <Badge 
-                                                pill 
-                                                style={{ 
-                                                    backgroundColor: categoryColors[formData.categoria] || categoryColors.default, 
-                                                    fontSize: '0.8rem', 
-                                                    marginRight: '8px',
-                                                    padding: '0.35em 0.65em'
-                                                }}
-                                            >
-                                                {formData.categoria}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <p className="mb-1 small text-muted">
-                                        {formData.descripcion || 'Sin descripción'}
-                                    </p>
-                                    <div className="d-flex align-items-center">
-                                        <h5 className="mb-0 me-3" style={{ color: '#8c5cf2' }}>
-                                            ${parseFloat(formData.precio || 0).toFixed(2)}
-                                        </h5>
-                                        {getStockBadge(formData.stock || 0)}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </Modal.Body>
 
                     <Modal.Footer>

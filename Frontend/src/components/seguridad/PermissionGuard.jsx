@@ -32,9 +32,31 @@ const PermissionGuard = ({
     );
   }
   
-  // Check if user has required roles - corregido para usar rol en lugar de roles
+  // Verificar si el usuario tiene token (importante para autenticación con API)
+  if (!currentUser.token) {
+    console.warn("Usuario sin token válido detectado");
+    // Redireccionar a login para renovar sesión
+    setTimeout(() => {
+      localStorage.removeItem('karmaUser'); // Limpiar sesión inválida
+      navigate(redirectPath);
+    }, 100);
+    
+    return (
+      <div className="permission-denied">
+        <div className="permission-message">
+          <i className="fas fa-exclamation-circle me-2"></i>
+          Sesión inválida o expirada. Por favor inicia sesión nuevamente.
+        </div>
+      </div>
+    );
+  }
+  
+  // Manejar tanto "rol" como "role" del usuario (compatibilidad con API)
+  const userRole = currentUser.rol || currentUser.role;
+  
+  // Check if user has required roles
   const hasPermission = requiredRoles.length === 0 || 
-    requiredRoles.includes(currentUser.rol);
+    requiredRoles.includes(userRole);
   
   if (!hasPermission) {
     return (

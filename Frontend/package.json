@@ -2,6 +2,7 @@
   "name": "karma",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -16,13 +17,18 @@
     "axios": "^1.8.2",
     "bootstrap": "^5.3.3",
     "date-fns": "^4.1.0",
+    "firebase": "^11.6.0",
     "font-awesome": "^4.7.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "ogl": "^1.0.11",
     "react": "^18.2.0",
     "react-bootstrap": "^2.7.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.3.0",
     "react-scripts": "5.0.1",
+    "react-to-print": "^3.0.6",
+    "recharts": "^2.15.3",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

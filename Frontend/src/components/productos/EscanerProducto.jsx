@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Spinner, Alert, Form } from 'react-bootstrap';
 import { Html5Qrcode } from 'html5-qrcode';
-
-const API_URL = 'http://127.0.0.1:5000';
+import { API_URL, API_PREFIX } from '../../servicios/api.jsx';
 
 const EscanerProducto = ({ onProductFound, onClose }) => {
   const [loading, setLoading] = useState(false);
@@ -93,14 +92,14 @@ const EscanerProducto = ({ onProductFound, onClose }) => {
       setError(null);
       
       // First check if it's a QR code from our system
-      const response = await fetch(`${API_URL}/productos/codigo/${code}`);
+      const response = await fetch(`${API_URL}${API_PREFIX}productos/codigo/${code}`);
       
       if (response.ok) {
         const product = await response.json();
         onProductFound(product);
       } else {
         // If not a system QR code, try looking up by product ID
-        const productIdResponse = await fetch(`${API_URL}/productos/${code}`);
+        const productIdResponse = await fetch(`${API_URL}${API_PREFIX}productos/${code}`);
         
         if (productIdResponse.ok) {
           const product = await productIdResponse.json();

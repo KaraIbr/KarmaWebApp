@@ -35,34 +35,5 @@ def gateway_index():
         ]
     })
 
-app = Flask(__name__)
-
-# Configurar CORS para permitir solicitudes desde el frontend
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "http://127.0.0.1:5501",
-            "http://localhost:5501",
-            "http://localhost:3000", 
-            "http://127.0.0.1:3000",
-            "https://karma-web-app.onrender.com",  # Dominio de producción
-            "https://karmawebapp.com",  # Dominio personalizado si existe
-            "https://karmawebapp.onrender.com"  # Dominio correcto en Render
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
-
-# Registrar los blueprints de cada microservicio
-app.register_blueprint(productos_bp)
-app.register_blueprint(carrito_bp)
-app.register_blueprint(inventario_bp)
-app.register_blueprint(pagos_bp)
-app.register_blueprint(ventas_bp)
-app.register_blueprint(usuarios_bp)
-app.register_blueprint(gateway_bp)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# No necesitamos crear una app aquí ya que este archivo solo define el blueprint
+# La aplicación principal y el registro de blueprints se manejan en app.py
